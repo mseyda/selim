@@ -1,6 +1,6 @@
 headersOrigin = "config"
+redirectsOrigin = "config"
 plugins = []
-redirects = []
 
 [functions]
 
@@ -31,3 +31,15 @@ for = "/*"
 [headers.values]
 X-Frame-Options = "DENY"
 X-Content-Type-Options = "nosniff"
+
+[[redirects]]
+from = "/selim/*"
+to = "/:splat"
+status = 200.0
+force = true
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]

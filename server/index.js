@@ -78,9 +78,14 @@ function startGameLoop(roomCode) {
   room.powerups = [];
   room.obstacles = [];
 
+  const startPos = [
+    { x: 150, y: 150 }, { x: 650, y: 450 },
+    { x: 650, y: 150 }, { x: 150, y: 450 },
+  ];
   const players = Object.values(room.players);
-  players[0].x = 150; players[0].y = 300; players[0].score = 0;
-  players[1].x = 650; players[1].y = 300; players[1].score = 0;
+  players.forEach((p, i) => {
+    p.x = startPos[i].x; p.y = startPos[i].y; p.score = 0;
+  });
 
   io.to(roomCode).emit('gameStart', {
     players: room.players,
@@ -122,9 +127,9 @@ function endGame(roomCode) {
   clearAllIntervals(room);
 
   const players = Object.values(room.players);
-  let winner = null;
-  if (players[0].score > players[1].score) winner = players[0].id;
-  else if (players[1].score > players[0].score) winner = players[1].id;
+  const maxScore = Math.max(...players.map(p => p.score));
+  const leaders = players.filter(p => p.score === maxScore);
+  const winner = leaders.length === 1 ? leaders[0].id : null;
 
   io.to(roomCode).emit('gameEnd', {
     players: room.players,
@@ -171,15 +176,15 @@ io.on('connection', (socket) => {
     const room = rooms[code];
     if (!room) { socket.emit('joinError', 'Oda bulunamadı!'); return; }
     if (room.gameState !== 'waiting') { socket.emit('joinError', 'Oyun zaten başladı!'); return; }
-    if (Object.keys(room.players).length >= 2) { socket.emit('joinError', 'Oda dolu!'); return; }
+    if (Object.keys(room.players).length >= 4) { socket.emit('joinError', 'Oda dolu! (max 4 oyuncu)'); return; }
 
+    const playerNum = Object.keys(room.players).length + 1;
     room.players[socket.id] = {
       id: socket.id,
-      name: playerName || 'Oyuncu 2',
+      name: playerName || `Oyuncu ${playerNum}`,
       character,
       score: 0,
-      x: 650,
-      y: 300,
+      x: 650, y: 300,
       ready: false,
       isHost: false,
       effects: {}
@@ -199,7 +204,7 @@ io.on('connection', (socket) => {
     io.to(code).emit('readyUpdate', { players: room.players });
 
     const players = Object.values(room.players);
-    if (players.length === 2 && players.every(p => p.ready)) {
+    if (players.length >= 2 && players.every(p => p.ready)) {
       setTimeout(() => startGameLoop(code), 1000);
     }
   });

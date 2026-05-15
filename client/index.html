@@ -117,24 +117,12 @@
   <!-- ── Oyun ── -->
   <div id="screen-game" class="screen">
     <div class="hud">
-      <div class="player-hud">
-        <div class="hud-avatar" id="hud-p1-avatar">🐢</div>
-        <div>
-          <div class="hud-name" id="hud-p1-name">Oyuncu 1</div>
-          <div class="hud-score" id="hud-p1-score">0</div>
-        </div>
-      </div>
+      <div id="hud-left" class="hud-side"></div>
       <div class="timer-wrap">
         <div class="timer-label">Süre</div>
         <div class="timer" id="game-timer">90</div>
       </div>
-      <div class="player-hud">
-        <div class="hud-right">
-          <div class="hud-name" id="hud-p2-name">Oyuncu 2</div>
-          <div class="hud-score" id="hud-p2-score">0</div>
-        </div>
-        <div class="hud-avatar" id="hud-p2-avatar">🐢</div>
-      </div>
+      <div id="hud-right" class="hud-side hud-side-right"></div>
     </div>
     <canvas id="gameCanvas" width="800" height="600"></canvas>
     <div class="effects-bar" id="effects-bar"></div>

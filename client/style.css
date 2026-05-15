@@ -398,23 +398,42 @@ body::before {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 20px;
+  padding: 8px 14px;
   background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.08);
   border-bottom: none;
   border-radius: 16px 16px 0 0;
+  gap: 10px;
 }
 
-.player-hud { display: flex; align-items: center; gap: 10px; }
-.hud-avatar { font-size: 2rem; }
-.hud-name { font-size: 0.8rem; font-weight: 700; color: var(--text-dim); }
-.hud-score {
+.hud-side {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+}
+.hud-side-right { align-items: flex-end; }
+
+.hud-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.06);
+  border: 1.5px solid transparent;
+  border-radius: 10px;
+  padding: 5px 11px;
+}
+.hud-me { /* border color set inline via JS */ }
+.hud-side-right .hud-card { flex-direction: row-reverse; }
+
+.hc-avatar { font-size: 1.5rem; line-height: 1; }
+.hc-name { font-size: 0.72rem; font-weight: 800; color: var(--text-dim); white-space: nowrap; }
+.hc-score {
   font-family: 'Fredoka One', cursive;
-  font-size: 1.8rem;
+  font-size: 1.4rem;
   color: var(--yellow);
   line-height: 1;
 }
-.hud-right { text-align: right; }
 
 .timer-wrap {
   display: flex;
