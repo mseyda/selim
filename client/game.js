@@ -306,16 +306,38 @@ function gameLoop(ts) {
   requestAnimationFrame(gameLoop);
 }
 
-// ── Collision helper ──────────────────────────────────────────────────────────
+// ── Collision helpers ─────────────────────────────────────────────────────────
+const R = PLAYER_SIZE / 2;
+
 function collidesObs(x, y) {
-  const r = PLAYER_SIZE / 2;
   for (const obs of state.obstacles) {
-    if (x + r > obs.x - obs.w / 2 &&
-        x - r < obs.x + obs.w / 2 &&
-        y + r > obs.y - obs.h / 2 &&
-        y - r < obs.y + obs.h / 2) return true;
+    if (x + R > obs.x - obs.w / 2 &&
+        x - R < obs.x + obs.w / 2 &&
+        y + R > obs.y - obs.h / 2 &&
+        y - R < obs.y + obs.h / 2) return true;
   }
   return false;
+}
+
+// Push the player out of any obstacle it currently overlaps.
+// This ensures p.x/p.y is always outside obstacles before movement is resolved,
+// which prevents the axis-separated check from seeing false positives on both axes.
+function pushOut(p) {
+  for (const obs of state.obstacles) {
+    const ox1 = obs.x - obs.w / 2, ox2 = obs.x + obs.w / 2;
+    const oy1 = obs.y - obs.h / 2, oy2 = obs.y + obs.h / 2;
+    if (p.x + R <= ox1 || p.x - R >= ox2 || p.y + R <= oy1 || p.y - R >= oy2) continue;
+    // Overlapping — push out along the shallowest axis
+    const ol = (p.x + R) - ox1;   // overlap from left
+    const or_ = ox2 - (p.x - R);  // overlap from right
+    const ot = (p.y + R) - oy1;   // overlap from top
+    const ob = oy2 - (p.y - R);   // overlap from bottom
+    const min = Math.min(ol, or_, ot, ob);
+    if      (min === ol)  p.x = ox1 - R;
+    else if (min === or_) p.x = ox2 + R;
+    else if (min === ot)  p.y = oy1 - R;
+    else                  p.y = oy2 + R;
+  }
 }
 
 // ── Update ────────────────────────────────────────────────────────────────────
@@ -337,15 +359,20 @@ function update(dt) {
   if (state.myKeys['ArrowRight'] || state.myKeys['d'] || state.myKeys['D']) vx += 1;
   if (vx && vy) { vx *= 0.707; vy *= 0.707; }
 
-  // Clamp to arena bounds first
-  let newX = Math.max(PLAYER_SIZE / 2, Math.min(ARENA_W - PLAYER_SIZE / 2, p.x + vx * spd));
-  let newY = Math.max(PLAYER_SIZE / 2, Math.min(ARENA_H - PLAYER_SIZE / 2, p.y + vy * spd));
+  // 1) Push player out of any overlap FIRST so p.x/p.y is guaranteed clean.
+  //    Without this, collidesObs(p.x, newY) can return true even when the player
+  //    is just grazing a corner, locking both axes simultaneously.
+  if (!hasShield) pushOut(p);
 
-  // Axis-separated obstacle collision — fixes wall sticking
+  // 2) Desired positions (arena-unclamped so wall-slide works correctly)
+  let newX = p.x + vx * spd;
+  let newY = p.y + vy * spd;
+
+  // 3) Axis-separated obstacle check — now reliable because p.x/p.y is clean
+  let hit = false;
   if (!hasShield) {
-    let hit = false;
-    if (collidesObs(newX, p.y)) { newX = p.x; hit = true; }   // block X, keep old X
-    if (collidesObs(p.x, newY)) { newY = p.y; hit = true; }   // block Y, keep old Y
+    if (collidesObs(newX, p.y)) { newX = p.x; hit = true; }
+    if (collidesObs(p.x, newY)) { newY = p.y; hit = true; }
     if (hit && !(fx.stunned > now)) {
       if (!state.effects[myId]) state.effects[myId] = {};
       state.effects[myId].stunned = now + 2000;
@@ -356,7 +383,10 @@ function update(dt) {
     }
   }
 
-  p.x = newX; p.y = newY; p.vx = vx; p.vy = vy;
+  // 4) Clamp to arena bounds last (so wall-slide isn't confused by clamping)
+  p.x = Math.max(R, Math.min(ARENA_W - R, newX));
+  p.y = Math.max(R, Math.min(ARENA_H - R, newY));
+  p.vx = vx; p.vy = vy;
   socket.emit('playerMove', { x: p.x, y: p.y, vx, vy });
 
   // Collect pizzas
