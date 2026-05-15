@@ -1,5 +1,7 @@
 // ── Config ──────────────────────────────────────────────────────────────────
-const SERVER_URL = 'http://localhost:3001';
+const SERVER_URL = window.location.hostname === 'localhost'
+  ? 'http://localhost:3001'
+  : 'https://pizza-dash-duel-server.onrender.com';
 const ARENA_W = 800, ARENA_H = 600;
 const PLAYER_SIZE = 32, PLAYER_SPEED = 3.5;
 const PIZZA_RADIUS = 16, POWERUP_RADIUS = 18;
