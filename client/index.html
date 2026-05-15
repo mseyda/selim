@@ -5,8 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pizza Dash Duel 🍕</title>
   <link rel="stylesheet" href="/selim/style.css">
+  <style>
+    #mute-btn {
+      position: fixed; top: 14px; right: 16px; z-index: 999;
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+      color: white; border-radius: 50%; width: 42px; height: 42px;
+      font-size: 1.2rem; cursor: pointer; display: flex; align-items: center;
+      justify-content: center; transition: background 0.2s;
+    }
+    #mute-btn:hover { background: rgba(255,255,255,0.18); }
+  </style>
 </head>
 <body>
+<button id="mute-btn" onclick="toggleMute()" title="Sesi kapat / aç">🔊</button>
 <div id="app">
 
   <!-- ── Ana Menü ── -->
@@ -143,6 +154,7 @@
 
 </div>
 <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+<script src="/selim/sound.js"></script>
 <script src="/selim/game.js"></script>
 </body>
 </html>

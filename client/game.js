@@ -90,26 +90,35 @@ function initSocket() {
   socket.on('obstacleSpawned',(obs)   => { state.obstacles.push(obs); });
 
   socket.on('pizzaCollected', ({ pizzaId, collectorId, scores }) => {
+    const pizza = state.pizzas.find(p => p.id === pizzaId);
     state.pizzas = state.pizzas.filter(p => p.id !== pizzaId);
     Object.assign(state.scores, scores);
     updateHUD();
     const col = state.allPlayers[collectorId];
-    if (col) showFloatingText(col.x, col.y, '+puan!', '#fff');
+    if (col) {
+      const pts = pizza?.gold ? 30 : 10;
+      showFloatingText(col.x, col.y, `+${pts}`, pizza?.gold ? '#ffd700' : '#fff');
+      if (collectorId === myId) pizza?.gold ? audio.goldPizza() : audio.pizza();
+    }
   });
 
   socket.on('powerupCollected', ({ powerupId, collectorId, type }) => {
     state.powerups = state.powerups.filter(p => p.id !== powerupId);
     applyPowerup(collectorId, type);
+    if (collectorId === myId) audio.powerup(type);
   });
 
   socket.on('timerUpdate', (remaining) => {
     const el = document.getElementById('game-timer');
     el.textContent = remaining;
     el.classList.toggle('urgent', remaining <= 10);
+    if (remaining <= 10 && remaining > 0) audio.countdown();
   });
 
   socket.on('gameEnd', ({ players, winner }) => {
     gameRunning = false;
+    audio.stopMusic();
+    setTimeout(() => winner === myId ? audio.win() : audio.lose(), 300);
     showResult(players, winner);
   });
 
@@ -128,12 +137,19 @@ function showScreen(id) {
   document.getElementById(id).classList.add('active');
 }
 
+function toggleMute() {
+  const muted = audio.toggleMute();
+  document.getElementById('mute-btn').textContent = muted ? '🔇' : '🔊';
+}
+
 function createRoom() {
+  audio._boot();
   const name = document.getElementById('create-name').value.trim() || 'Oyuncu 1';
   socket.emit('createRoom', { playerName: name, character: selectedChar.id });
 }
 
 function joinRoom() {
+  audio._boot();
   const name = document.getElementById('join-name').value.trim() || 'Oyuncu';
   const code = document.getElementById('join-code').value.trim().toUpperCase();
   if (!code || code.length !== 4) {
@@ -238,6 +254,8 @@ function startLocalGame(players) {
   state.myPlayer = state.allPlayers[myId];
 
   buildHUD();
+  audio.gameStart();
+  setTimeout(() => audio.startMusic(), 600);
   gameRunning = true;
   lastTime = performance.now();
   showScreen('screen-game');
@@ -333,6 +351,7 @@ function update(dt) {
       state.effects[myId].stunned = now + 2000;
       state.effects[myId].slow    = now + 2000;
       showFloatingText(p.x, p.y, 'Sersemledin! 😵', '#ff5722');
+      audio.hit();
       updateEffectsBar();
     }
   }
