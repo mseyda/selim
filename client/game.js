@@ -21,13 +21,14 @@ let selectedChar = CHARACTERS[0];
 let gameRunning = false, lastTime = 0;
 
 const state = {
-  myPlayer:   null,         // shortcut to allPlayers[myId]
-  allPlayers: {},           // id → player (me + opponents)
+  myPlayer:   null,
+  allPlayers: {},
   pizzas:     [],
   powerups:   [],
   obstacles:  [],
+  topac:      null,         // { x, y } — server güncelliyor
   scores:     {},
-  effects:    {},           // id → { speed, slow, shield, stunned }
+  effects:    {},           // id → { speed, slow, shield, stunned, frozen }
   myKeys:     {},
 };
 
@@ -106,6 +107,19 @@ function initSocket() {
     state.powerups = state.powerups.filter(p => p.id !== powerupId);
     applyPowerup(collectorId, type);
     if (collectorId === myId) audio.powerup(type);
+  });
+
+  socket.on('topacUpdate', ({ x, y }) => {
+    if (!state.topac) state.topac = { x, y };
+    else { state.topac.x = x; state.topac.y = y; }
+  });
+
+  socket.on('playerFrozen', ({ targetId, until }) => {
+    if (!state.effects[targetId]) state.effects[targetId] = {};
+    state.effects[targetId].frozen = until;
+    const target = state.allPlayers[targetId];
+    if (target) showFloatingText(target.x, target.y, '❄️ Dondu!', '#29b6f6');
+    if (targetId === myId) { audio.hit(); updateEffectsBar(); }
   });
 
   socket.on('timerUpdate', (remaining) => {
@@ -350,14 +364,32 @@ function update(dt) {
   const hasSpeed  = fx.speed  > now;
   const hasSlow   = fx.slow   > now;
   const hasShield = fx.shield > now;
-  const spd = PLAYER_SPEED * (hasSpeed ? 1.8 : hasSlow ? 0.45 : 1) * dt;
+  let   hasFrozen = fx.frozen > now;
+
+  // Topaç çarpışması (kalkan korur)
+  if (state.topac && !hasShield && !hasFrozen) {
+    const dist = Math.hypot(p.x - state.topac.x, p.y - state.topac.y);
+    if (dist < R + 22) {
+      if (!state.effects[myId]) state.effects[myId] = {};
+      state.effects[myId].frozen = now + 3000;
+      hasFrozen = true;
+      showFloatingText(p.x, p.y, '❄️ Dondu!', '#29b6f6');
+      audio.hit();
+      updateEffectsBar();
+      socket.emit('topacHit', { targetId: myId });
+    }
+  }
+
+  const spd = hasFrozen ? 0 : PLAYER_SPEED * (hasSpeed ? 1.8 : hasSlow ? 0.45 : 1) * dt;
 
   let vx = 0, vy = 0;
-  if (state.myKeys['ArrowUp']    || state.myKeys['w'] || state.myKeys['W']) vy -= 1;
-  if (state.myKeys['ArrowDown']  || state.myKeys['s'] || state.myKeys['S']) vy += 1;
-  if (state.myKeys['ArrowLeft']  || state.myKeys['a'] || state.myKeys['A']) vx -= 1;
-  if (state.myKeys['ArrowRight'] || state.myKeys['d'] || state.myKeys['D']) vx += 1;
-  if (vx && vy) { vx *= 0.707; vy *= 0.707; }
+  if (!hasFrozen) {
+    if (state.myKeys['ArrowUp']    || state.myKeys['w'] || state.myKeys['W']) vy -= 1;
+    if (state.myKeys['ArrowDown']  || state.myKeys['s'] || state.myKeys['S']) vy += 1;
+    if (state.myKeys['ArrowLeft']  || state.myKeys['a'] || state.myKeys['A']) vx -= 1;
+    if (state.myKeys['ArrowRight'] || state.myKeys['d'] || state.myKeys['D']) vx += 1;
+    if (vx && vy) { vx *= 0.707; vy *= 0.707; }
+  }
 
   // 1) Push player out of any overlap FIRST so p.x/p.y is guaranteed clean.
   //    Without this, collidesObs(p.x, newY) can return true even when the player
@@ -477,6 +509,9 @@ function render() {
     ctx.restore();
   }
 
+  // Topaç
+  drawTopac();
+
   // Draw opponents first, me on top
   const sorted = Object.values(state.allPlayers).sort(p => p.id === myId ? 1 : -1);
   for (const p of sorted) drawPlayer(p, p.id === myId);
@@ -492,6 +527,61 @@ function render() {
   }
 }
 
+function drawTopac() {
+  if (!state.topac) return;
+  const { x, y } = state.topac;
+  const spin = (Date.now() * 0.007) % (Math.PI * 2);
+  const pulse = 1 + 0.06 * Math.sin(Date.now() * 0.004);
+
+  ctx.save();
+  ctx.translate(x, y);
+
+  // Tehlike alanı (soluk halka)
+  ctx.beginPath();
+  ctx.arc(0, 0, (R + 22) * pulse, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255,64,129,0.25)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.rotate(spin);
+  ctx.shadowColor = '#ff4081';
+  ctx.shadowBlur = 16;
+
+  // 4 renkli dilim (beyblade stili)
+  const colors = ['#ff4757', '#ffd32a', '#2ed573', '#4fc3f7'];
+  for (let i = 0; i < 4; i++) {
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, 18, i * Math.PI/2, (i+1) * Math.PI/2);
+    ctx.fillStyle = colors[i];
+    ctx.fill();
+  }
+  // Dış çember
+  ctx.beginPath();
+  ctx.arc(0, 0, 18, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  // Merkez
+  ctx.beginPath();
+  ctx.arc(0, 0, 4.5, 0, Math.PI * 2);
+  ctx.fillStyle = 'white';
+  ctx.shadowBlur = 0;
+  ctx.fill();
+
+  ctx.restore();
+
+  // Sivri uç (döndürme dışında sabit)
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.beginPath();
+  ctx.moveTo(-3, 16); ctx.lineTo(3, 16); ctx.lineTo(0, 27);
+  ctx.closePath();
+  ctx.fillStyle = '#666';
+  ctx.fill();
+  ctx.restore();
+}
+
 function drawPlayer(p, isMe) {
   const char = CHARACTERS.find(c => c.id === p.character) || CHARACTERS[0];
   const now = Date.now();
@@ -499,9 +589,20 @@ function drawPlayer(p, isMe) {
   const hasShield = fx.shield > now;
   const hasSpeed  = fx.speed  > now;
   const hasSlow   = fx.slow   > now;
+  const hasFrozen = fx.frozen > now;
 
   ctx.save();
   ctx.translate(p.x, p.y);
+
+  // Donma efekti (kalkan altında değilse)
+  if (hasFrozen) {
+    ctx.beginPath();
+    ctx.arc(0, 0, PLAYER_SIZE / 2 + 8, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(100,200,255,0.35)';
+    ctx.fill();
+    ctx.strokeStyle = '#29b6f6'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.shadowColor = '#29b6f6'; ctx.shadowBlur = 14;
+  }
 
   if (hasShield) {
     ctx.beginPath();
@@ -510,29 +611,32 @@ function drawPlayer(p, isMe) {
     ctx.fill();
     ctx.strokeStyle = '#4caf50'; ctx.lineWidth = 2; ctx.stroke();
   }
-  if (hasSpeed) { ctx.shadowColor = '#ffeb3b'; ctx.shadowBlur = 20; }
+  if (hasSpeed && !hasFrozen) { ctx.shadowColor = '#ffeb3b'; ctx.shadowBlur = 20; }
 
   ctx.beginPath();
   ctx.arc(0, 0, PLAYER_SIZE / 2, 0, Math.PI * 2);
-  ctx.fillStyle = char.color + '55';
+  ctx.fillStyle = hasFrozen ? '#90caf9' + '88' : char.color + '55';
   ctx.fill();
-  if (isMe) { ctx.strokeStyle = char.color; ctx.lineWidth = 3; ctx.stroke(); }
+  if (isMe) { ctx.strokeStyle = hasFrozen ? '#29b6f6' : char.color; ctx.lineWidth = 3; ctx.stroke(); }
 
   ctx.font = `${PLAYER_SIZE * 0.9}px serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(char.emoji, 0, 0);
 
-  // Name tag
   ctx.shadowBlur = 0;
   ctx.font = 'bold 11px Nunito, sans-serif';
   ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = 3;
   ctx.textAlign = 'center';
   const label = (isMe ? '▶ ' : '') + p.name;
   ctx.strokeText(label, 0, -PLAYER_SIZE / 2 - 8);
-  ctx.fillStyle = isMe ? char.color : 'white';
+  ctx.fillStyle = hasFrozen ? '#29b6f6' : isMe ? char.color : 'white';
   ctx.fillText(label, 0, -PLAYER_SIZE / 2 - 8);
 
-  if (hasSlow && !hasShield) {
+  // Durum ikonları
+  if (hasFrozen) {
+    ctx.font = '13px serif';
+    ctx.fillText('❄️', PLAYER_SIZE / 2 + 4, -PLAYER_SIZE / 2);
+  } else if (hasSlow && !hasShield) {
     ctx.font = '12px serif';
     ctx.fillText('🐌', PLAYER_SIZE / 2 + 2, -PLAYER_SIZE / 2);
   }
@@ -578,6 +682,7 @@ function updateEffectsBar() {
   if (!fx) { bar.innerHTML = ''; return; }
   const now = Date.now();
   const badges = [];
+  if (fx.frozen > now) badges.push(`<div class="effect-badge" style="color:#29b6f6">❄️ Dondu ${Math.ceil((fx.frozen-now)/1000)}s</div>`);
   if (fx.speed  > now) badges.push(`<div class="effect-badge">⚡ Hız ${Math.ceil((fx.speed-now)/1000)}s</div>`);
   if (fx.slow   > now) badges.push(`<div class="effect-badge">🐌 Yavaş ${Math.ceil((fx.slow-now)/1000)}s</div>`);
   if (fx.shield > now) badges.push(`<div class="effect-badge">🛡️ Kalkan ${Math.ceil((fx.shield-now)/1000)}s</div>`);
@@ -617,17 +722,33 @@ function playAgain() {
   showScreen('screen-lobby');
 }
 
-// ── Input ─────────────────────────────────────────────────────────────────────
+// ── Keyboard Input ────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
   state.myKeys[e.key] = true;
   if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
 });
 document.addEventListener('keyup', e => { state.myKeys[e.key] = false; });
 
+// ── D-pad (touch + mouse) ─────────────────────────────────────────────────────
+function setupDpad() {
+  document.querySelectorAll('.dpad-btn[data-key]').forEach(btn => {
+    const key = btn.dataset.key;
+    const press   = e => { e.preventDefault(); state.myKeys[key] = true;  btn.classList.add('pressed'); };
+    const release = e => { e.preventDefault(); state.myKeys[key] = false; btn.classList.remove('pressed'); };
+    btn.addEventListener('touchstart',  press,   { passive: false });
+    btn.addEventListener('touchend',    release, { passive: false });
+    btn.addEventListener('touchcancel', release, { passive: false });
+    btn.addEventListener('mousedown',  press);
+    btn.addEventListener('mouseup',    release);
+    btn.addEventListener('mouseleave', release);
+  });
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   renderCharGrids();
   initSocket();
+  setupDpad();
   const codeInput = document.getElementById('join-code');
   codeInput.addEventListener('input', () => { codeInput.value = codeInput.value.toUpperCase(); });
 });

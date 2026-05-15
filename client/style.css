@@ -553,6 +553,43 @@ body::before {
   width: 100%;
 }
 
+/* ── D-pad ── */
+#dpad {
+  display: grid;
+  grid-template-columns: repeat(3, 62px);
+  grid-template-rows: repeat(3, 62px);
+  gap: 6px;
+  padding: 10px 0 6px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.dpad-btn {
+  width: 62px; height: 62px;
+  background: rgba(255,255,255,0.10);
+  border: 2px solid rgba(255,255,255,0.18);
+  border-radius: 14px;
+  color: white;
+  font-size: 1.3rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  touch-action: manipulation;
+  transition: background 0.08s, transform 0.08s;
+  -webkit-tap-highlight-color: transparent;
+}
+.dpad-btn:active,
+.dpad-btn.pressed {
+  background: rgba(255,71,87,0.55);
+  border-color: #ff4757;
+  transform: scale(0.92);
+}
+.dpad-center {
+  border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
 /* ── Responsive ── */
 @media (max-width: 860px) {
   #gameCanvas, .hud, .effects-bar { width: 100vw; }

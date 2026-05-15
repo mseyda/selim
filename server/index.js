@@ -78,6 +78,10 @@ function startGameLoop(roomCode) {
   room.powerups = [];
   room.obstacles = [];
 
+  const angle0 = Math.random() * Math.PI * 2;
+  const spd0 = 4 + Math.random() * 2;
+  room.topac = { x: 400, y: 300, vx: Math.cos(angle0)*spd0, vy: Math.sin(angle0)*spd0, changeTimer: 80 };
+
   const startPos = [
     { x: 150, y: 150 }, { x: 650, y: 450 },
     { x: 650, y: 150 }, { x: 150, y: 450 },
@@ -108,16 +112,40 @@ function startGameLoop(roomCode) {
     const elapsed = Date.now() - room.startTime;
     const remaining = Math.max(0, Math.ceil((room.gameDuration - elapsed) / 1000));
     io.to(roomCode).emit('timerUpdate', remaining);
-    if (remaining <= 0) {
-      endGame(roomCode);
-    }
+    if (remaining <= 0) endGame(roomCode);
   }, 1000);
+
+  // Topaç: hareket simülasyonu 50ms'de bir (20fps)
+  const MARGIN = 28, AW = 800, AH = 600;
+  room.topacInterval = setInterval(() => {
+    if (!rooms[roomCode]) return;
+    const t = room.topac;
+    t.x += t.vx; t.y += t.vy;
+    if (t.x < MARGIN)      { t.x = MARGIN;    t.vx =  Math.abs(t.vx) + Math.random() * 0.5; }
+    if (t.x > AW - MARGIN) { t.x = AW-MARGIN; t.vx = -Math.abs(t.vx) - Math.random() * 0.5; }
+    if (t.y < MARGIN)      { t.y = MARGIN;    t.vy =  Math.abs(t.vy) + Math.random() * 0.5; }
+    if (t.y > AH - MARGIN) { t.y = AH-MARGIN; t.vy = -Math.abs(t.vy) - Math.random() * 0.5; }
+    // Hız normalizasyonu
+    const spd = Math.hypot(t.vx, t.vy);
+    if (spd > 7) { t.vx = t.vx/spd*7; t.vy = t.vy/spd*7; }
+    if (spd < 3) { t.vx = t.vx/spd*4; t.vy = t.vy/spd*4; }
+    // Rastgele yön değişimi
+    t.changeTimer--;
+    if (t.changeTimer <= 0) {
+      const a = Math.random() * Math.PI * 2;
+      const s = 4 + Math.random() * 2.5;
+      t.vx = Math.cos(a) * s; t.vy = Math.sin(a) * s;
+      t.changeTimer = 50 + Math.floor(Math.random() * 80);
+    }
+    io.to(roomCode).emit('topacUpdate', { x: t.x, y: t.y });
+  }, 50);
 }
 
 function clearAllIntervals(room) {
   clearInterval(room.pizzaInterval);
   clearInterval(room.powerupInterval);
   clearInterval(room.timerInterval);
+  clearInterval(room.topacInterval);
 }
 
 function endGame(roomCode) {
@@ -240,6 +268,13 @@ io.on('connection', (socket) => {
     if (idx === -1) return;
     const pu = room.powerups.splice(idx, 1)[0];
     io.to(code).emit('powerupCollected', { powerupId, collectorId: socket.id, type: pu.type });
+  });
+
+  socket.on('topacHit', ({ targetId }) => {
+    const code = socket.roomCode;
+    const room = rooms[code];
+    if (!room || room.gameState !== 'playing') return;
+    io.to(code).emit('playerFrozen', { targetId, until: Date.now() + 3000 });
   });
 
   socket.on('disconnect', () => {
