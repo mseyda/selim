@@ -309,7 +309,7 @@ body::before {
   font-weight: 900;
   color: var(--yellow);
 }
-.char-emoji { font-size: 2.4rem; line-height: 1.2; }
+.char-portrait { display: block; margin: 0 auto; }
 .char-name { font-size: 0.7rem; font-weight: 800; margin-top: 6px; color: var(--text-dim); }
 .char-dot { width: 8px; height: 8px; border-radius: 50%; margin: 5px auto 0; }
 
@@ -358,7 +358,7 @@ body::before {
   align-items: center;
   gap: 12px;
 }
-.p-avatar { font-size: 2rem; }
+.p-avatar { display: flex; align-items: center; }
 .p-info { flex: 1; }
 .p-name { font-weight: 800; font-size: 0.95rem; }
 .p-char { font-size: 0.78rem; color: var(--text-dim); margin-top: 2px; }
@@ -426,7 +426,7 @@ body::before {
 .hud-me { /* border color set inline via JS */ }
 .hud-side-right .hud-card { flex-direction: row-reverse; }
 
-.hc-avatar { font-size: 1.5rem; line-height: 1; }
+.hc-avatar { display: flex; align-items: center; }
 .hc-name { font-size: 0.72rem; font-weight: 800; color: var(--text-dim); white-space: nowrap; }
 .hc-score {
   font-family: 'Fredoka One', cursive;
@@ -536,7 +536,7 @@ body::before {
   background: rgba(255,211,42,0.08);
   box-shadow: 0 0 20px rgba(255,211,42,0.15);
 }
-.result-avatar { font-size: 2rem; }
+.result-avatar { display: flex; align-items: center; }
 .result-name { flex: 1; font-weight: 800; font-size: 1rem; }
 .result-score {
   font-family: 'Fredoka One', cursive;

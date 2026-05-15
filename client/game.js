@@ -15,6 +15,91 @@ const CHARACTERS = [
   { id: 'don',   name: 'Donatello',    emoji: '🐢', color: '#ce93d8' },
 ];
 
+// ── TMNT Portrait Drawing ─────────────────────────────────────────────────────
+function drawTurtlePortrait(ctx, cx, cy, s, charId, isFrozen = false) {
+  const maskCol = { leo:'#1565c0', raph:'#c62828', mike:'#e65100', don:'#6a1b9a' }[charId] || '#1565c0';
+  const darkG  = isFrozen ? '#2a5f7a' : '#286028';
+  const lightG = isFrozen ? '#46a0b8' : '#4ec04e';
+
+  ctx.save();
+  ctx.translate(cx, cy);
+
+  // Dark green outer head
+  ctx.beginPath();
+  ctx.ellipse(0, 0, s*0.46, s*0.5, 0, 0, Math.PI*2);
+  ctx.fillStyle = darkG;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Lighter face area
+  ctx.beginPath();
+  ctx.ellipse(0, s*0.06, s*0.35, s*0.42, 0, 0, Math.PI*2);
+  ctx.fillStyle = lightG;
+  ctx.fill();
+
+  // Colored mask band (horizontal ellipse over eye area)
+  const mY = -s*0.12;
+  ctx.beginPath();
+  ctx.ellipse(0, mY, s*0.46, s*0.14, 0, 0, Math.PI*2);
+  ctx.fillStyle = maskCol;
+  ctx.fill();
+
+  // Mask tails (right side — two flowing ribbons)
+  ctx.fillStyle = maskCol;
+  ctx.beginPath();
+  ctx.moveTo(s*0.32, mY - s*0.07);
+  ctx.bezierCurveTo(s*0.6, mY-s*0.22, s*0.65, mY-s*0.02, s*0.45, mY+s*0.08);
+  ctx.bezierCurveTo(s*0.38, mY+s*0.09, s*0.35, mY+s*0.03, s*0.32, mY-s*0.07);
+  ctx.closePath(); ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(s*0.32, mY + s*0.07);
+  ctx.bezierCurveTo(s*0.62, mY+s*0.02, s*0.66, mY+s*0.2, s*0.46, mY+s*0.25);
+  ctx.bezierCurveTo(s*0.38, mY+s*0.26, s*0.35, mY+s*0.2, s*0.32, mY+s*0.07);
+  ctx.closePath(); ctx.fill();
+
+  // White eye ovals within mask
+  const eY = mY + s*0.01, eG = s*0.15;
+  [-eG, eG].forEach(eX => {
+    ctx.beginPath();
+    ctx.ellipse(eX, eY, s*0.1, s*0.11, 0, 0, Math.PI*2);
+    ctx.fillStyle = 'white'; ctx.fill();
+
+    ctx.beginPath();
+    ctx.ellipse(eX+s*0.015, eY+s*0.01, s*0.055, s*0.065, 0, 0, Math.PI*2);
+    ctx.fillStyle = '#111'; ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(eX+s*0.04, eY-s*0.03, s*0.018, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fill();
+  });
+
+  // Nostrils
+  ctx.fillStyle = isFrozen ? '#1a506a' : '#2a622a';
+  [-s*0.07, s*0.07].forEach(nX => {
+    ctx.beginPath();
+    ctx.ellipse(nX, s*0.2, s*0.028, s*0.022, nX<0?-0.3:0.3, 0, Math.PI*2);
+    ctx.fill();
+  });
+
+  // Smile
+  ctx.strokeStyle = isFrozen ? '#1a506a' : '#2a622a';
+  ctx.lineWidth = s*0.033; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(0, s*0.2, s*0.15, 0.28, Math.PI-0.28);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function createPortraitEl(charId, sz, isFrozen = false) {
+  const cvs = document.createElement('canvas');
+  cvs.width = cvs.height = sz;
+  cvs.style.cssText = `width:${sz}px;height:${sz}px;display:block;flex-shrink:0;`;
+  drawTurtlePortrait(cvs.getContext('2d'), sz*0.5, sz*0.53, sz*0.7, charId, isFrozen);
+  return cvs;
+}
+
 // ── State ────────────────────────────────────────────────────────────────────
 let socket, myId = null, myRoomCode = null;
 let selectedChar = CHARACTERS[0];
@@ -206,15 +291,26 @@ function updateLobbyPlayers() {
     const char = CHARACTERS.find(c => c.id === p.character) || CHARACTERS[0];
     const row = document.createElement('div');
     row.className = 'player-row card';
-    row.innerHTML = `
-      <div class="p-avatar">${char.emoji}</div>
-      <div class="p-info">
-        <div class="p-name">${escHtml(p.name)}${p.isHost ? ' 👑' : ''}</div>
-        <div class="p-char" style="color:${char.color}">${char.name}</div>
-      </div>
-      <div class="p-badge ${p.ready ? 'badge-ready' : 'badge-waiting'}">
-        ${p.ready ? '✅ Hazır' : '⏳ Bekliyor'}
-      </div>`;
+
+    row.appendChild(createPortraitEl(char.id, 52));
+
+    const info = document.createElement('div');
+    info.className = 'p-info';
+    const pName = document.createElement('div');
+    pName.className = 'p-name';
+    pName.textContent = p.name + (p.isHost ? ' 👑' : '');
+    const pChar = document.createElement('div');
+    pChar.className = 'p-char';
+    pChar.style.color = char.color;
+    pChar.textContent = char.name;
+    info.appendChild(pName); info.appendChild(pChar);
+    row.appendChild(info);
+
+    const badge = document.createElement('div');
+    badge.className = 'p-badge ' + (p.ready ? 'badge-ready' : 'badge-waiting');
+    badge.textContent = p.ready ? '✅ Hazır' : '⏳ Bekliyor';
+    row.appendChild(badge);
+
     list.appendChild(row);
   });
 
@@ -236,10 +332,23 @@ function renderCharGrids() {
     CHARACTERS.forEach(char => {
       const card = document.createElement('div');
       card.className = 'char-card' + (char.id === selectedChar.id ? ' selected' : '');
-      card.innerHTML = `
-        <div class="char-emoji">${char.emoji}</div>
-        <div class="char-name">${char.name}</div>
-        <div class="char-dot" style="background:${char.color}"></div>`;
+
+      const portrait = document.createElement('canvas');
+      portrait.className = 'char-portrait';
+      portrait.width = portrait.height = 72;
+      drawTurtlePortrait(portrait.getContext('2d'), 36, 38, 50, char.id);
+      card.appendChild(portrait);
+
+      const nameDiv = document.createElement('div');
+      nameDiv.className = 'char-name';
+      nameDiv.textContent = char.name;
+      card.appendChild(nameDiv);
+
+      const dotDiv = document.createElement('div');
+      dotDiv.className = 'char-dot';
+      dotDiv.style.background = char.color;
+      card.appendChild(dotDiv);
+
       card.onclick = () => {
         selectedChar = char;
         document.querySelectorAll(`#${gridId} .char-card`).forEach(c => c.classList.remove('selected'));
@@ -294,12 +403,21 @@ function makeHudCard(p, isMe) {
   const div = document.createElement('div');
   div.className = 'hud-card' + (isMe ? ' hud-me' : '');
   if (isMe) div.style.borderColor = char.color + '80';
-  div.innerHTML = `
-    <span class="hc-avatar">${char.emoji}</span>
-    <div>
-      <div class="hc-name" style="color:${char.color}">${escHtml(p.name)}${isMe ? ' ▶' : ''}</div>
-      <div class="hc-score" id="hc-score-${p.id}">0</div>
-    </div>`;
+
+  div.appendChild(createPortraitEl(char.id, 38));
+
+  const info = document.createElement('div');
+  const hcName = document.createElement('div');
+  hcName.className = 'hc-name';
+  hcName.style.color = char.color;
+  hcName.textContent = p.name + (isMe ? ' ▶' : '');
+  const hcScore = document.createElement('div');
+  hcScore.className = 'hc-score';
+  hcScore.id = `hc-score-${p.id}`;
+  hcScore.textContent = '0';
+  info.appendChild(hcName); info.appendChild(hcScore);
+  div.appendChild(info);
+
   return div;
 }
 
@@ -619,9 +737,7 @@ function drawPlayer(p, isMe) {
   ctx.fill();
   if (isMe) { ctx.strokeStyle = hasFrozen ? '#29b6f6' : char.color; ctx.lineWidth = 3; ctx.stroke(); }
 
-  ctx.font = `${PLAYER_SIZE * 0.9}px serif`;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(char.emoji, 0, 0);
+  drawTurtlePortrait(ctx, 0, 0, PLAYER_SIZE, char.id, hasFrozen);
 
   ctx.shadowBlur = 0;
   ctx.font = 'bold 11px Nunito, sans-serif';
@@ -703,10 +819,20 @@ function showResult(players, winnerId) {
     const char = CHARACTERS.find(c => c.id === p.character) || CHARACTERS[0];
     const row = document.createElement('div');
     row.className = 'result-row' + (p.id === winnerId ? ' winner' : '');
-    row.innerHTML = `
-      <div class="result-avatar">${char.emoji}</div>
-      <div class="result-name" style="color:${char.color}">${escHtml(p.name)}${p.id === winnerId ? ' 🏆' : ''}</div>
-      <div class="result-score">${p.score ?? 0}</div>`;
+
+    row.appendChild(createPortraitEl(char.id, 52));
+
+    const nameDiv = document.createElement('div');
+    nameDiv.className = 'result-name';
+    nameDiv.style.color = char.color;
+    nameDiv.textContent = p.name + (p.id === winnerId ? ' 🏆' : '');
+    row.appendChild(nameDiv);
+
+    const scoreDiv = document.createElement('div');
+    scoreDiv.className = 'result-score';
+    scoreDiv.textContent = p.score ?? 0;
+    row.appendChild(scoreDiv);
+
     scoresEl.appendChild(row);
   });
 

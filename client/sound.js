@@ -117,54 +117,73 @@ class GameAudio {
 
   _loop() {
     if (!this.musicPlaying || this.muted) return;
-    const BPM = 156;
-    const b = 60 / BPM;         // one beat in seconds
-    const h = b / 2;            // half beat
+    // ── TMNT 1987 cartoon theme (approximate) ─────────────────────────
+    const BPM = 164;
+    const b = 60 / BPM;
+    const h = b / 2;
+    const q = b / 4;
 
-    // ── Melody (square wave) ───────────────────────────────────────────
-    // Pattern: fun, pizza-game energy, 8 bars of 4/4
-    const M = [
-      // Bar 1-2
-      [523,h],[659,h],[784,h],[659,h],  [523,h],[440,h],[392,b],
-      // Bar 3-4
-      [440,h],[523,h],[659,h],[523,h],  [440,h],[392,h],[349,b],
-      // Bar 5-6
-      [523,h],[659,h],[784,h],[880,h],  [784,h],[659,h],[523,b],
-      // Bar 7-8
-      [659,h],[523,h],[440,h],[392,h],  [330,b],[262,b],
+    const E3=165, B2=123,
+          B4=494, C5=523, D5=587, E5=659, G5=784, A5=880;
+
+    // 4 staccato power-chord stabs + pause
+    const STABS = [
+      [E5,h*0.45],[0,h*0.55], [E5,h*0.45],[0,h*0.55],
+      [E5,h*0.45],[0,h*0.55], [E5,h*0.45],[0,h*1.55],
     ];
 
-    // ── Bass (triangle wave) ───────────────────────────────────────────
-    const BAS = [
-      [131,b],[131,b],[196,b],[196,b],
-      [165,b],[165,b],[175,b],[175,b],
-      [131,b],[131,b],[220,b],[220,b],
-      [175,b],[175,b],[131,b*2],
+    // "Teenage Mutant Ninja Turtles" — rise then fall
+    const TMNT_PH = [
+      [E5,h],[G5,h],
+      [A5,b],
+      [G5,h],[E5,h],
+      [D5,h],[C5,h],
+      [B4,b*2],
+      [0,b],
     ];
 
-    // ── Hi-hat (noise sim via high detuned square) ─────────────────────
-    const HAT_BEAT = b / 2;
-    const totalBeats = M.reduce((s,[,d])=>s+d,0);
+    // "Heroes in a half-shell"
+    const HEROES = [
+      [G5,h],[G5,q],[A5,q],
+      [G5,h],[E5,b],
+      [D5,h],[C5,h+b],
+      [0,h],
+    ];
 
+    // "Turtle power!"
+    const POWER = [
+      [E5,q],[G5,q],[A5,h],
+      [G5,q],[E5,q],[C5,b+h],
+      [0,h],
+    ];
+
+    const M = [...STABS, ...TMNT_PH, ...TMNT_PH, ...TMNT_PH, ...HEROES, ...POWER];
+    const totalBeats = M.reduce((s,[,d]) => s + d, 0);
+
+    // Melody (square wave)
     let mt = 0;
     M.forEach(([f, d]) => {
-      this._tone({ freq: f, dur: d * 0.82, type: 'square', vol: 0.18, when: mt, bus: this.musicBus });
+      if (f > 0) this._tone({ freq:f, dur:d*0.72, type:'square', vol:0.2, when:mt, bus:this.musicBus });
       mt += d;
     });
 
-    let bt = 0;
-    BAS.forEach(([f, d]) => {
-      this._tone({ freq: f, dur: d * 0.65, type: 'triangle', vol: 0.28, when: bt, bus: this.musicBus });
-      bt += d;
-    });
-
-    // Hi-hat pattern
-    for (let i = 0; i < totalBeats / HAT_BEAT; i++) {
-      this._tone({ freq: 4400 + (i % 2) * 800, dur: 0.04, type: 'square', vol: 0.04, when: i * HAT_BEAT, bus: this.musicBus });
+    // Bass: driving E power chord, one per beat
+    for (let bt = 0; bt < totalBeats; bt += b) {
+      this._tone({ freq:E3,      dur:b*0.82, type:'sawtooth', vol:0.26, when:bt, bus:this.musicBus });
+      this._tone({ freq:E3*1.5,  dur:b*0.82, type:'sawtooth', vol:0.1,  when:bt, bus:this.musicBus });
     }
 
-    const loopMs = totalBeats * 1000 - 80; // start next loop slightly early
-    this.musicTimer = setTimeout(() => this._loop(), loopMs);
+    // Hi-hat (every half-beat)
+    for (let i = 0; i*h < totalBeats; i++) {
+      this._tone({ freq:4200+(i%2)*1800, dur:0.038, type:'square', vol:0.042, when:i*h, bus:this.musicBus });
+    }
+
+    // Snare accent on beats 2 & 4
+    for (let i = 1; i*b < totalBeats; i += 2) {
+      this._tone({ freq:200, dur:0.09, type:'sawtooth', vol:0.1, when:i*b, bus:this.musicBus });
+    }
+
+    this.musicTimer = setTimeout(() => this._loop(), totalBeats * 1000 - 80);
   }
 
   // ── Mute toggle ──────────────────────────────────────────────────────────
