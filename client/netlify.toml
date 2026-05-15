@@ -1,6 +1,14 @@
 [build]
   publish = "."
 
+# When proxied via seyda.me/selim, the browser resolves /selim/* paths.
+# This redirect maps them back to the actual files on this site.
+[[redirects]]
+  from = "/selim/*"
+  to = "/:splat"
+  status = 200
+  force = true
+
 [[headers]]
   for = "/*"
   [headers.values]
