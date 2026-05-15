@@ -148,8 +148,8 @@ function setReady() {
   state.myPlayer.ready = !state.myPlayer.ready;
   btn.textContent = state.myPlayer.ready ? '✅ Hazırım!' : '⏳ Hazır Değilim';
   btn.style.background = state.myPlayer.ready
-    ? 'linear-gradient(135deg, #4caf50, #388e3c)'
-    : 'linear-gradient(135deg, #e94560, #c62a47)';
+    ? 'linear-gradient(135deg, #00b894, #00cec9)'
+    : '';
   socket.emit('playerReady');
 }
 
@@ -163,7 +163,7 @@ function copyCode() {
   navigator.clipboard.writeText(myRoomCode).then(() => {
     const btn = event.target;
     btn.textContent = '✅ Kopyalandı!';
-    setTimeout(() => btn.textContent = '📋 Kodu Kopyala', 2000);
+    setTimeout(() => btn.textContent = '📋 Kopyala', 2000);
   });
 }
 
@@ -176,12 +176,12 @@ function updateLobbyPlayers(players) {
     const row = document.createElement('div');
     row.className = 'player-row';
     row.innerHTML = `
-      <div class="p-emoji">${char.emoji}</div>
+      <div class="p-avatar">${char.emoji}</div>
       <div class="p-info">
         <div class="p-name">${escHtml(p.name)} ${p.isHost ? '👑' : ''}</div>
         <div class="p-char" style="color:${char.color}">${char.name}</div>
       </div>
-      <div class="p-status ${p.ready ? 'status-ready' : 'status-waiting'}">
+      <div class="p-badge ${p.ready ? 'badge-ready' : 'badge-waiting'}">
         ${p.ready ? '✅ Hazır' : '⏳ Bekliyor'}
       </div>
     `;
@@ -209,7 +209,7 @@ function renderCharGrids() {
       card.innerHTML = `
         <div class="char-emoji">${char.emoji}</div>
         <div class="char-name">${char.name}</div>
-        <div class="char-color" style="background:${char.color}"></div>
+        <div class="char-dot" style="background:${char.color}"></div>
       `;
       card.onclick = () => {
         selectedChar = char;
@@ -547,11 +547,11 @@ function showResult(players, winnerId) {
   Object.values(players).forEach(p => {
     const char = CHARACTERS.find(c => c.id === p.character) || CHARACTERS[0];
     const row = document.createElement('div');
-    row.className = 'result-score-row' + (p.id === winnerId ? ' winner' : '');
+    row.className = 'result-row' + (p.id === winnerId ? ' winner' : '');
     row.innerHTML = `
-      <div class="r-emoji">${char.emoji}</div>
-      <div class="r-name" style="color:${char.color}">${escHtml(p.name)} ${p.id === winnerId ? '🏆' : ''}</div>
-      <div class="r-score">${players[p.id]?.score ?? state.scores[p.id] ?? 0}</div>
+      <div class="result-avatar">${char.emoji}</div>
+      <div class="result-name" style="color:${char.color}">${escHtml(p.name)} ${p.id === winnerId ? '🏆' : ''}</div>
+      <div class="result-score">${players[p.id]?.score ?? state.scores[p.id] ?? 0}</div>
     `;
     scoresEl.appendChild(row);
   });
