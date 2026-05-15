@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pizza Dash Duel 🍕</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Ana Menü -->
+    <div id="screen-menu" class="screen active">
+      <div class="menu-container">
+        <div class="logo">
+          <div class="logo-icon">🍕</div>
+          <h1>Pizza Dash<br><span>Duel</span></h1>
+        </div>
+        <div class="menu-buttons">
+          <button class="btn btn-primary" onclick="showScreen('screen-create')">🎮 Party Oluştur</button>
+          <button class="btn btn-secondary" onclick="showScreen('screen-join')">🔗 Party'ye Katıl</button>
+          <button class="btn btn-info" onclick="showScreen('screen-howto')">❓ Nasıl Oynanır?</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Nasıl Oynanır -->
+    <div id="screen-howto" class="screen">
+      <div class="howto-container">
+        <h2>🍕 Nasıl Oynanır?</h2>
+        <div class="howto-grid">
+          <div class="howto-card">
+            <div class="howto-icon">🎯</div>
+            <h3>Amaç</h3>
+            <p>90 saniye içinde mümkün olduğunca çok pizza topla. En yüksek puana sahip oyuncu kazanır!</p>
+          </div>
+          <div class="howto-card">
+            <div class="howto-icon">⌨️</div>
+            <h3>Kontroller</h3>
+            <p>Her oyuncu kendi cihazında oynar.<br>
+            <strong>WASD</strong> veya <strong>Ok tuşları</strong> ile hareket et.</p>
+          </div>
+          <div class="howto-card">
+            <div class="howto-icon">🍕</div>
+            <h3>Pizzalar</h3>
+            <p>Normal pizza: <strong>+10 puan</strong><br>
+            Altın pizza: <strong>+30 puan</strong></p>
+          </div>
+          <div class="howto-card">
+            <div class="howto-icon">⚡</div>
+            <h3>Güçlendirmeler</h3>
+            <p>⚡ Hız: 5 sn hızlan<br>
+            🐌 Yavaşlatma: Rakibi yavaşlat<br>
+            🛡️ Kalkan: Engellerden korun</p>
+          </div>
+        </div>
+        <button class="btn btn-secondary" onclick="showScreen('screen-menu')">← Geri</button>
+      </div>
+    </div>
+
+    <!-- Party Oluştur -->
+    <div id="screen-create" class="screen">
+      <div class="form-container">
+        <h2>🎮 Party Oluştur</h2>
+        <div class="input-group">
+          <label>İsmin</label>
+          <input type="text" id="create-name" placeholder="Adını gir..." maxlength="12">
+        </div>
+        <h3>Karakter Seç</h3>
+        <div class="character-grid" id="create-char-grid"></div>
+        <div class="form-actions">
+          <button class="btn btn-primary" onclick="createRoom()">Party Oluştur →</button>
+          <button class="btn btn-ghost" onclick="showScreen('screen-menu')">← Geri</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Party'ye Katıl -->
+    <div id="screen-join" class="screen">
+      <div class="form-container">
+        <h2>🔗 Party'ye Katıl</h2>
+        <div class="input-group">
+          <label>İsmin</label>
+          <input type="text" id="join-name" placeholder="Adını gir..." maxlength="12">
+        </div>
+        <div class="input-group">
+          <label>Oda Kodu</label>
+          <input type="text" id="join-code" placeholder="Örn: A7K9" maxlength="4" style="text-transform:uppercase;font-size:2rem;letter-spacing:0.3em;text-align:center">
+        </div>
+        <h3>Karakter Seç</h3>
+        <div class="character-grid" id="join-char-grid"></div>
+        <div id="join-error" class="error-msg"></div>
+        <div class="form-actions">
+          <button class="btn btn-primary" onclick="joinRoom()">Katıl →</button>
+          <button class="btn btn-ghost" onclick="showScreen('screen-menu')">← Geri</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bekleme Ekranı -->
+    <div id="screen-lobby" class="screen">
+      <div class="lobby-container">
+        <h2>🎮 Oyun Lobisi</h2>
+        <div class="room-code-display">
+          <p>Oda Kodu</p>
+          <div class="code-box" id="lobby-code">----</div>
+          <button class="btn btn-small" onclick="copyCode()">📋 Kodu Kopyala</button>
+        </div>
+        <div class="players-list" id="lobby-players"></div>
+        <div class="lobby-status" id="lobby-status">Arkadaşının bağlanmasını bekle...</div>
+        <button class="btn btn-primary" id="ready-btn" onclick="setReady()" disabled>Hazır Değilim</button>
+        <button class="btn btn-ghost" onclick="showScreen('screen-menu')">← Menüye Dön</button>
+      </div>
+    </div>
+
+    <!-- Oyun Ekranı -->
+    <div id="screen-game" class="screen">
+      <div class="hud">
+        <div class="hud-left">
+          <div class="player-hud" id="hud-p1">
+            <div class="player-avatar" id="hud-p1-avatar">🐢</div>
+            <div class="player-info">
+              <div class="player-name" id="hud-p1-name">Oyuncu 1</div>
+              <div class="player-score" id="hud-p1-score">0</div>
+            </div>
+          </div>
+        </div>
+        <div class="hud-center">
+          <div class="timer" id="game-timer">90</div>
+        </div>
+        <div class="hud-right">
+          <div class="player-hud hud-right-player" id="hud-p2">
+            <div class="player-info">
+              <div class="player-name" id="hud-p2-name">Oyuncu 2</div>
+              <div class="player-score" id="hud-p2-score">0</div>
+            </div>
+            <div class="player-avatar" id="hud-p2-avatar">🐢</div>
+          </div>
+        </div>
+      </div>
+      <canvas id="gameCanvas" width="800" height="600"></canvas>
+      <div class="effects-bar" id="effects-bar"></div>
+    </div>
+
+    <!-- Sonuç Ekranı -->
+    <div id="screen-result" class="screen">
+      <div class="result-container">
+        <div id="result-trophy">🏆</div>
+        <h2 id="result-title">Kazanan!</h2>
+        <div class="result-scores" id="result-scores"></div>
+        <div class="result-actions">
+          <button class="btn btn-primary" onclick="playAgain()">🔄 Tekrar Oyna</button>
+          <button class="btn btn-ghost" onclick="showScreen('screen-menu')">🏠 Ana Menü</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
